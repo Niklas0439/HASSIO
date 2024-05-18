@@ -1,5 +1,5 @@
 blueprint:
-  name: Sonoff Zigbee Button
+  name: Sonoff Buttons
   description: Setup actions for three functions of the SONOFF Zigbee button with
     Press, Double Press, and Hold.
   domain: automation
