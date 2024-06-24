@@ -8,7 +8,7 @@ blueprint:
     Press-Rotating left/right will change the color temperature (or hue).
     Long press switches between color temperature and rgb modes.
 
-    Tripple click switches to the second mode where double click is available.
+    Triple click switches to the second mode where double click is available.
     All functionality of the second mode just writes logs, adapt as necessary."
   domain: automation
   input:
@@ -39,12 +39,13 @@ action:
   - variables:
       entity: !input light
       command: "{{ trigger.event.data.command }}"
-      step_mode: "{{ trigger.event.data.params.step_mode | default('') | string}}"
-      rotate_type: "{{ trigger.event.data.params.rotate_type | default('')}}"
-      press_type: "{{ trigger.event.data.params.press_type | default('')}}"
-      step_dir: "{{ 1 if step_mode == 'StepMode.Up' or rotate_type == 1 else -1}}"
-      step_size: "{{ trigger.event.data.params.step_size | default('')}}"
-      args_value: "{{ trigger.event.data.args.value | default('')}}"
+      step_mode: "{{ trigger.event.data.params.step_mode | default('') | string }}"
+      rotate_type: "{{ trigger.event.data.params.rotate_type | default('') }}"
+      press_type: "{{ trigger.event.data.params.press_type | default('') }}"
+      step_dir: "{{ 1 if step_mode == 'StepMode.Up' or rotate_type == 1 else -1 }}"
+      step_size: "{{ trigger.event.data.params.step_size | default('') }}"
+      args_value: "{{ trigger.event.data.args.value | default('') }}"
+      current_mode: "{{ states('input_select.smart_knob_mode') }}"
   - choose:
       #----------------------- Toggle -----------------------------
       - conditions:
@@ -61,44 +62,49 @@ action:
           - service: light.turn_on
             target: !input light
             data:
-              brightness_step_pct: "{{ step_size/4 * step_dir}}"
+              brightness_step_pct: "{{ step_size / 4 * step_dir }}"
               transition: 0.25
       #----------------------- Temperature -----------------------------
       - conditions:
           - "{{ command == 'step_color_temp' }}"
-          - "{{ state_attr(entity.entity_id, 'color_mode') == 'color_temp'}}"
+          - "{{ state_attr(entity.entity_id, 'color_mode') == 'color_temp' }}"
         sequence:
           - service: light.turn_on
             target: !input light
             data:
-              color_temp: "{{ state_attr(entity.entity_id, 'color_temp')|int - step_size * step_dir}}"
+              color_temp: "{{ state_attr(entity.entity_id, 'color_temp') | int - step_size * step_dir }}"
               transition: 0.25
       #----------------------- RGB -----------------------------
       - conditions:
           - "{{ command == 'step_color_temp' }}"
-          - "{{ state_attr(entity.entity_id, 'color_mode') == 'rgb'}}"
+          - "{{ state_attr(entity.entity_id, 'color_mode') == 'rgb' }}"
         sequence:
           - service: light.turn_on
             target: !input light
             data:
               hs_color:
-                - "{{ (state_attr( entity.entity_id, 'hs_color')[0]|int + step_size/2*step_dir)%360}}"
+                - "{{ (state_attr(entity.entity_id, 'hs_color')[0] | int + step_size / 2 * step_dir) % 360 }}"
                 - 100
               transition: 0.25
       #----------------------- to Temperature -----------------------------
       - conditions:
           - "{{ command == 'move_saturation' }}"
-          - "{{ state_attr(entity.entity_id, 'color_mode') == 'rgb'}}"
+          - "{{ state_attr(entity.entity_id, 'color_mode') == 'rgb' }}"
         sequence:
           - service: light.turn_on
             target: !input light
             data:
               color_temp: 300
               transition: 0.25
+          - service: input_select.select_option
+            target:
+              entity_id: input_select.smart_knob_mode
+            data:
+              option: "color_temp"
       #----------------------- to RGB -----------------------------
       - conditions:
           - "{{ command == 'move_saturation' }}"
-          - "{{ state_attr(entity.entity_id, 'color_mode') == 'color_temp'}}"
+          - "{{ state_attr(entity.entity_id, 'color_mode') == 'color_temp' }}"
         sequence:
           - service: light.turn_on
             target: !input light
@@ -106,6 +112,11 @@ action:
               hs_color:
                 - 0
                 - 100
+          - service: input_select.select_option
+            target:
+              entity_id: input_select.smart_knob_mode
+            data:
+              option: "rgb"
       #----------------------- mode 0 enter -----------------------------
       - conditions:
           - "{{ command == 'attribute_updated' }}"
@@ -114,51 +125,63 @@ action:
           - service: system_log.write
             data:
               message: "entered mode 0"
-
+          - service: input_select.select_option
+            target:
+              entity_id: input_select.smart_knob_mode
+            data:
+              option: "mode_0"
       #----------------------- mode 1 enter -----------------------------
       - conditions:
           - "{{ command == 'attribute_updated' }}"
-          - "{{ args_value == 0 }}"
+          - "{{ args_value == 1 }}"
         sequence:
           - service: system_log.write
             data:
-              message: "entered mode 0"
-
+              message: "entered mode 1"
+          - service: input_select.select_option
+            target:
+              entity_id: input_select.smart_knob_mode
+            data:
+              option: "mode_1"
       #----------------------- mode 2 rotate -----------------------------
       - conditions:
           - "{{ command == 'rotate_type' }}"
+          - "{{ current_mode == 'mode_1' }}"
         sequence:
           - service: system_log.write
             data:
-              message: "mode 1 rotate  {{step_dir}}"
+              message: "mode 1 rotate  {{ step_dir }}"
       #----------------------- mode 2 click -----------------------------
       - conditions:
           - "{{ command == 'press_type' }}"
           - "{{ press_type == 0 }}"
+          - "{{ current_mode == 'mode_1' }}"
         sequence:
           - service: system_log.write
             data:
-              message: "mode 1 click "
+              message: "mode 1 click"
       #----------------------- mode 2 dblclick -----------------------------
       - conditions:
           - "{{ command == 'press_type' }}"
           - "{{ press_type == 1 }}"
+          - "{{ current_mode == 'mode_1' }}"
         sequence:
           - service: system_log.write
             data:
-              message: "mode 1 dblclick "
+              message: "mode 1 dblclick"
       #----------------------- mode 2 long -----------------------------
       - conditions:
           - "{{ command == 'press_type' }}"
           - "{{ press_type == 2 }}"
+          - "{{ current_mode == 'mode_1' }}"
         sequence:
           - service: system_log.write
             data:
-              message: "mode 1 long click "
-
+              message: "mode 1 long click"
       #----------------------- mode 1 Long Press -----------------------------
       - conditions:
           - "{{ command == 'move_hue' }}"
+          - "{{ current_mode == 'mode_0' }}"
         sequence:
           - repeat:
               sequence:
@@ -173,10 +196,10 @@ action:
                   timeout:
                     milliseconds: 500
               until: "{{ wait.trigger is not none or repeat.index >= 10 }}"
-
-      # ----------------------- mode 1 Long release -----------------------------
+      #----------------------- mode 1 Long release -----------------------------
       - conditions:
           - "{{ command == 'stop_move_step' }}"
+          - "{{ current_mode == 'mode_0' }}"
         sequence:
           - service: system_log.write
             data:
