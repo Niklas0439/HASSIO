@@ -1,5 +1,6 @@
 blueprint:
   name: ZHA - Smart Knob for lights
+  source_url: https://gist.github.com/dbuezas/832d15a762488f2754c59bc9ca9632da
   description: "Control lights with a Moes Smart Knob.
 
     Rotating left/right will change the brightness smoothly of the selected light
@@ -9,12 +10,12 @@ blueprint:
 
     Tripple click switches to the second mode where double click is available.
     All functionality of the second mode just writes logs, adapt as necessary."
- 
+  
   domain: automation
   input:
     remote:
       name: Remote
-      description: Moes Knob to use
+      description: The Smart Knob to use
       selector:
         device:
           integration: zha
@@ -28,7 +29,7 @@ blueprint:
           entity:
             - domain:
                 - light
-      helper:
+    helper:
         name: Helper
         description: Helper to manage state
         selector:
@@ -47,13 +48,12 @@ action:
   - variables:
       entity: !input light
       command: "{{ trigger.event.data.command }}"
-      step_mode: "{{ trigger.event.data.params.step_mode | default('') | string }}"
-      rotate_type: "{{ trigger.event.data.params.rotate_type | default('') }}"
-      press_type: "{{ trigger.event.data.params.press_type | default('') }}"
-      step_dir: "{{ 1 if step_mode == 'StepMode.Up' or rotate_type == 1 else -1 }}"
-      step_size: "{{ trigger.event.data.params.step_size | default('') }}"
-      args_value: "{{ trigger.event.data.args.value | default('') }}"
-      current_mode: "{{ state.input_select.hue_knob }}"
+      step_mode: "{{ trigger.event.data.params.step_mode | default('') | string}}"
+      rotate_type: "{{ trigger.event.data.params.rotate_type | default('')}}"
+      press_type: "{{ trigger.event.data.params.press_type | default('')}}"
+      step_dir: "{{ 1 if step_mode == 'StepMode.Up' or rotate_type == 1 else -1}}"
+      step_size: "{{ trigger.event.data.params.step_size | default('')}}"
+      args_value: "{{ trigger.event.data.args.value | default('')}}"
   - choose:
       #----------------------- Toggle -----------------------------
       - conditions:
@@ -70,49 +70,44 @@ action:
           - service: light.turn_on
             target: !input light
             data:
-              brightness_step_pct: "{{ step_size / 4 * step_dir }}"
+              brightness_step_pct: "{{ step_size/4 * step_dir}}"
               transition: 0.25
       #----------------------- Temperature -----------------------------
       - conditions:
           - "{{ command == 'step_color_temp' }}"
-          - "{{ state_attr(entity.entity_id, 'color_mode') == 'color_temp' }}"
+          - "{{ state_attr(entity.entity_id, 'color_mode') == 'color_temp'}}"
         sequence:
           - service: light.turn_on
             target: !input light
             data:
-              color_temp: "{{ state_attr(entity.entity_id, 'color_temp') | int - step_size * step_dir }}"
+              color_temp: "{{ state_attr(entity.entity_id, 'color_temp')|int - step_size * step_dir}}"
               transition: 0.25
       #----------------------- RGB -----------------------------
       - conditions:
           - "{{ command == 'step_color_temp' }}"
-          - "{{ state_attr(entity.entity_id, 'color_mode') == 'rgb' }}"
+          - "{{ state_attr(entity.entity_id, 'color_mode') == 'rgb'}}"
         sequence:
           - service: light.turn_on
             target: !input light
             data:
               hs_color:
-                - "{{ (state_attr(entity.entity_id, 'hs_color')[0] | int + step_size / 2 * step_dir) % 360 }}"
+                - "{{ (state_attr( entity.entity_id, 'hs_color')[0]|int + step_size/2*step_dir)%360}}"
                 - 100
               transition: 0.25
       #----------------------- to Temperature -----------------------------
       - conditions:
           - "{{ command == 'move_saturation' }}"
-          - "{{ state_attr(entity.entity_id, 'color_mode') == 'rgb' }}"
+          - "{{ state_attr(entity.entity_id, 'color_mode') == 'rgb'}}"
         sequence:
           - service: light.turn_on
             target: !input light
             data:
               color_temp: 300
               transition: 0.25
-          - service: input_select.select_option
-            target:
-              entity_id: input_select.hue_knob
-            data:
-              option: "color_temp"
       #----------------------- to RGB -----------------------------
       - conditions:
           - "{{ command == 'move_saturation' }}"
-          - "{{ state_attr(entity.entity_id, 'color_mode') == 'color_temp' }}"
+          - "{{ state_attr(entity.entity_id, 'color_mode') == 'color_temp'}}"
         sequence:
           - service: light.turn_on
             target: !input light
@@ -120,11 +115,6 @@ action:
               hs_color:
                 - 0
                 - 100
-          - service: input_select.select_option
-            target:
-              entity_id: input_select.hue_knob
-            data:
-              option: "rgb"
       #----------------------- mode 0 enter -----------------------------
       - conditions:
           - "{{ command == 'attribute_updated' }}"
@@ -133,28 +123,19 @@ action:
           - service: system_log.write
             data:
               message: "entered mode 0"
-          - service: input_select.select_option
-            target:
-              entity_id: input_select.hue_knob
-            data:
-              option: "white_mode"
+
       #----------------------- mode 1 enter -----------------------------
       - conditions:
           - "{{ command == 'attribute_updated' }}"
-          - "{{ args_value == 1 }}"
+          - "{{ args_value == 0 }}"
         sequence:
           - service: system_log.write
             data:
-              message: "entered mode 1"
-          - service: input_select.select_option
-            target:
-              entity_id: input_select.hue_knob
-            data:
-              option: "RGB_mode"
+              message: "entered mode 0"
+
       #----------------------- mode 2 rotate -----------------------------
       - conditions:
           - "{{ command == 'rotate_type' }}"
-          - "{{ current_mode == 'RGB_mode' }}"
         sequence:
           - service: system_log.write
             data:
@@ -163,33 +144,30 @@ action:
       - conditions:
           - "{{ command == 'press_type' }}"
           - "{{ press_type == 0 }}"
-          - "{{ current_mode == 'RGB_mode' }}"
         sequence:
           - service: system_log.write
             data:
-              message: "mode 1 click"
+              message: "mode 1 click "
       #----------------------- mode 2 dblclick -----------------------------
       - conditions:
           - "{{ command == 'press_type' }}"
           - "{{ press_type == 1 }}"
-          - "{{ current_mode == 'RGB_mode' }}"
         sequence:
           - service: system_log.write
             data:
-              message: "mode 1 dblclick"
+              message: "mode 1 dblclick "
       #----------------------- mode 2 long -----------------------------
       - conditions:
           - "{{ command == 'press_type' }}"
           - "{{ press_type == 2 }}"
-          - "{{ current_mode == 'RGB_mode' }}"
         sequence:
           - service: system_log.write
             data:
-              message: "mode 1 long click"
+              message: "mode 1 long click "
+
       #----------------------- mode 1 Long Press -----------------------------
       - conditions:
           - "{{ command == 'move_hue' }}"
-          - "{{ current_mode == 'white_mode' }}"
         sequence:
           - repeat:
               sequence:
@@ -204,10 +182,10 @@ action:
                   timeout:
                     milliseconds: 500
               until: "{{ wait.trigger is not none or repeat.index >= 10 }}"
-      #----------------------- mode 1 Long release -----------------------------
+
+      # ----------------------- mode 1 Long release -----------------------------
       - conditions:
           - "{{ command == 'stop_move_step' }}"
-          - "{{ current_mode == 'white_mode' }}"
         sequence:
           - service: system_log.write
             data:
