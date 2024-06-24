@@ -1,0 +1,144 @@
+blueprint:
+  name: ZHA - Smart Knob for lights
+  description: "Control lights with a Moes Smart Knob.
+
+    Rotating left/right will change the brightness smoothly of the selected light
+    and making use of step_size.
+    Press-Rotating left/right will change the color temperature (or hue).
+    Long press switches between color temperature and rgb modes.
+
+    Tripple click switches to the second mode where double click is available.
+    All functionality of the second mode just writes logs, adapt as necessary."
+
+  domain: automation
+  input:
+    remote:
+      name: Remote
+      description: Moes Knob to use
+      selector:
+        device:
+          integration: zha
+          model: TS004F
+          multiple: false
+    light:
+      name: Light(s)
+      description: The light(s) to control
+      selector:
+        target:
+          entity:
+            - domain:
+                - light
+    helper:
+      name: Helper
+      description: Helper to manage state
+      selector:
+        target:
+          entity:
+            - domain:
+                - input_select
+    short_press:
+      name: Single Press
+      description: Action to run on single press
+      default: []
+      selector:
+        action: {}
+    double_press:
+      name: Double Press
+      description: Action to run on double press
+      default: []
+      selector:
+        action: {}
+    toggle:
+      name: Toggle
+      description: Action to run on Toggle
+      default: []
+      selector:
+        action: {}
+    hold:
+      name: Hold
+      description: Action to run on hold
+      default: []
+      selector:
+        action: {}
+    rotate_left:
+      name: Rotate - Left
+      description: Action to run on left rotation
+      default: []
+      selector:
+        action: {}
+    rotate_right:
+      name: Rotate - Right
+      description: Action to run on right rotation
+      default: []
+      selector:
+        action: {}
+    brightness_step_up:
+      name: Brightness Step Up
+      description: Action to run on right rotation
+      default: []
+      selector:
+        action: {}
+    brightness_step_down:
+      name: Brightness Step Down
+      description: Action to run on left rotation
+      default: []
+      selector:
+        action: {}
+    color_temperature_step_up:
+      name: Color Temperature Step Up
+      description: Action to run on hold & right rotation
+      default: []
+      selector:
+        action: {}
+    color_temperature_step_down:
+      name: Color Temperature Step Down
+      description: Action to run on hold & left rotation
+      default: []
+      selector:
+        action: {}
+mode: single
+max_exceeded: silent
+trigger:
+  - platform: state
+    entity_id: !input "switch"
+    attribute: action
+action:
+  - variables:
+      command: "{{ trigger.to_state.attributes.action }}"
+  - choose:
+      - conditions:
+        - '{{ command == ''single'' }}'
+        sequence: !input 'short_press'
+      - conditions:
+        - '{{ command == ''double'' }}'
+        sequence: !input 'double_press'
+      - conditions:
+        - '{{ command == ''toggle'' }}'
+        sequence: !input 'toggle'
+      - conditions:
+        - '{{ command == ''rotate_right'' }}'
+        sequence: !input 'rotate_right'
+      - conditions:
+        - '{{ command == ''rotate_left'' }}'
+        sequence: !input 'rotate_left'
+      - conditions:
+        - '{{ command == ''brightness_step_up'' }}'
+        sequence:
+          repeat:
+            count: '{{ (trigger.to_state.attributes.action_step_size / 13) | round }}'
+            sequence: !input 'brightness_step_up'
+      - conditions:
+        - '{{ command == ''brightness_step_down'' }}'
+        sequence:
+          repeat:
+            count: '{{ (trigger.to_state.attributes.action_step_size / 13) | round }}'
+            sequence: !input 'brightness_step_down'
+      - conditions:
+        - '{{ command == ''color_temperature_step_up'' }}'
+        sequence: !input 'color_temperature_step_up'
+      - conditions:
+        - '{{ command == ''color_temperature_step_down'' }}'
+        sequence: !input 'color_temperature_step_down'
+      - conditions:
+        - '{{ command == ''hold'' }}'
+        sequence: !input 'hold'
