@@ -29,13 +29,13 @@ blueprint:
             - domain:
                 - light
       helper:
-      name: Helper
-      description: Helper to manage state
-      selector:
-        target:
-          entity:
-            - domain:
-                - input_select
+        name: Helper
+        description: Helper to manage state
+        selector:
+          target:
+            entity:
+              - domain:
+                  - input_select
 mode: queued
 max_exceeded: silent
 trigger:
